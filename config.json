@@ -1,0 +1,30 @@
+{
+  "app" : {
+    "port": "3000"
+  },
+  "database":{
+    "engine": "mysql",
+    "server": "localhost",
+    "port": "13306",
+    "user": "root",
+    "password": "openIM123",
+    "name" : "openIM_v2"
+  },
+  "cache": {
+    "server": "localhost",
+    "port": "16379",
+    "password": "openIM123",
+    "wallet": {
+      "db" : 0,
+      "expiryInHours": 0
+    },
+    "idempotency": {
+      "db": 1,
+      "expiryInHours": 12
+    },
+    "cronLock": {
+      "db": 2,
+      "expiryInMinutes": 1
+    }
+  }
+}

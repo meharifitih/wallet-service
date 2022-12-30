@@ -1,0 +1,56 @@
+2022/12/29 15:48:28 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 15:49:22 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 15:50:02 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 15:56:28 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 15:57:06 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 15:59:53 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
+2022/12/29 16:00:26 No ./config.json file found!! Terminating the server, error: open ./config.json: no such file or directory
+panic: No config file found! Error : open ./config.json: no such file or directory
+
+goroutine 1 [running]:
+main.initConfig()
+	/home/mehari/go/src/Wallet-Service/main.go:76 +0x194
+main.main()
+	/home/mehari/go/src/Wallet-Service/main.go:58 +0x1d
