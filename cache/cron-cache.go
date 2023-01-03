@@ -2,10 +2,11 @@ package cache
 
 import (
 	"context"
-	"github.com/WalletService/config"
-	"github.com/go-redis/redis/v8"
 	"log"
 	"time"
+
+	"github.com/WalletService/config"
+	"github.com/go-redis/redis/v8"
 )
 
 // distributed cron caching to make sure cron gets executes only for one instance at same time by locking mechanism
@@ -42,7 +43,7 @@ func (cC *cronCache) ReleaseLock(key string, client string) {
 	val, err := cCCE.GetCacheClient().Get(cCCtx, key).Result()
 	if err != redis.Nil && val == client {
 		cCCE.GetCacheClient().Del(cCCtx, key)
-	}else {
+	} else {
 		log.Printf("Error occurred while releasing lock for key %s , error : %v", key, err)
 	}
 	log.Printf("Cron Cache | ReleaseLock Key : %s, Client : %s \n", key, client)

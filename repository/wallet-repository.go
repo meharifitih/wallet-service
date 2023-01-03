@@ -58,7 +58,7 @@ type TransferTxResult struct {
 
 type IWalletRepository interface {
 	GetWalletById(id int) (*Wallet, error)
-	GetWalletByUserId(userID int) (*Wallet, error)
+	GetWalletByUserId(userID string) (*Wallet, error)
 	CreateWallet(wallet *Wallet) (*Wallet, error)
 	UpdateWallet(wallet *Wallet) (*Wallet, error)
 	//DeleteWallet(wallet *Wallet) error
@@ -79,7 +79,7 @@ func (walletRepository *walletRepository) GetWalletById(id int) (*Wallet, error)
 	return &wallet, result.Error
 }
 
-func (walletRepository *walletRepository) GetWalletByUserId(userID int) (*Wallet, error) {
+func (walletRepository *walletRepository) GetWalletByUserId(userID string) (*Wallet, error) {
 	var wallet Wallet
 	// use below association approach to avoid preload
 	// result := walletRepository.DB.Where("user_id = ?", userID).Find(&wallet)

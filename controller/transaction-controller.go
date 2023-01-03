@@ -10,17 +10,19 @@ import (
 	"github.com/WalletService/cache"
 	. "github.com/WalletService/model"
 	"github.com/WalletService/service"
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
+	"github.com/jinzhu/gorm"
 )
 
 type ITransactionController interface {
-	GetTransaction(w http.ResponseWriter, r *http.Request)
-	GetTransactionsByWalletId(w http.ResponseWriter, r *http.Request)
-	GetTransactions(w http.ResponseWriter, r *http.Request)
-	GetActiveTransactions(w http.ResponseWriter, r *http.Request)
-	PostTransaction(w http.ResponseWriter, r *http.Request)
-	PutTransaction(w http.ResponseWriter, r *http.Request)
-	UpdateActiveTransactions(w http.ResponseWriter, r *http.Request)
+	GetTransaction(c *gin.Context)
+	GetTransactionsByWalletId(c *gin.Context)
+	GetTransactions(c *gin.Context)
+	GetActiveTransactions(c *gin.Context)
+	PostTransaction(c *gin.Context)
+	CreateTransfer(ctx *gin.Context)
+	PutTransaction(c *gin.Context)
+	UpdateActiveTransactions(c *gin.Context)
 }
 
 type transactionController struct{}
@@ -36,139 +38,154 @@ func NewTransactionController(service service.ITransactionService, idempotent ca
 	return &transactionController{}
 }
 
-func (transactionController *transactionController) GetTransaction(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (transactionController *transactionController) GetTransaction(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid transaction ID")
+		c.JSON(http.StatusBadRequest, "Invalid transaction ID")
 		return
 	}
 	transaction, err := transactionService.GetTransactionService(id)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "Transaction not found")
+			c.JSON(http.StatusNotFound, "Transaction not found")
 		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, transaction)
+	c.JSON(http.StatusOK, transaction)
 }
 
-func (transactionController *transactionController) GetTransactionsByWalletId(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (transactionController *transactionController) GetTransactionsByWalletId(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid wallet ID")
+		c.JSON(http.StatusBadRequest, "Invalid wallet ID")
 		return
 	}
 	transaction, err := transactionService.GetTransactionsByWalletIdService(id)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "Transactions not found")
+			c.JSON(http.StatusNotFound, "Transactions not found")
 		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, transaction)
+	c.JSON(http.StatusOK, transaction)
 }
 
-func (transactionController *transactionController) GetTransactions(w http.ResponseWriter, r *http.Request) {
+func (transactionController *transactionController) GetTransactions(c *gin.Context) {
 	transactions, err := transactionService.GetTransactionsService()
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusOK, transactions)
+	c.JSON(http.StatusOK, transactions)
 }
 
-func (transactionController *transactionController) GetActiveTransactions(w http.ResponseWriter, r *http.Request) {
+func (transactionController *transactionController) GetActiveTransactions(c *gin.Context) {
 	transactions, err := transactionService.GetActiveTransactionsService()
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusOK, transactions)
+	c.JSON(http.StatusOK, transactions)
 }
 
-func (transactionController *transactionController) PostTransaction(w http.ResponseWriter, r *http.Request) {
+func (transactionController *transactionController) PostTransaction(c *gin.Context) {
 	// check for x-idempotency-key
-	key, err := transactionIdempotentCache.GetIdempotencyKey(r)
+	key, err := transactionIdempotentCache.GetIdempotencyKey(c.Request)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, err.Error())
+		c.JSON(http.StatusBadRequest, err.Error())
 		return
 	}
 	// if this request is not unique, return with idempotent transaction result
 	if idempotentTransaction := transactionIdempotentCache.Get(key); idempotentTransaction != nil {
-		respondWithJSON(w, http.StatusCreated, idempotentTransaction)
+		c.JSON(http.StatusCreated, idempotentTransaction)
 		return
 	}
 	var transaction Transaction
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(c.Request.Body)
 	if err := decoder.Decode(&transaction); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		c.JSON(http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+	// vars := mux.Vars(r)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid transaction ID")
+		c.JSON(http.StatusBadRequest, "Invalid transaction ID")
 		return
 	}
-	defer r.Body.Close()
+	defer c.Request.Body.Close()
 	res, err := transactionService.PostTransactionService(&transaction, id)
 	if err != nil {
 		log.Printf("Not able to post Transaction : %s", err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
 	// Record this request with x-idempotency-key for certain expiry
 	transactionIdempotentCache.Set(key, res)
-	respondWithJSON(w, http.StatusCreated, res)
+	c.JSON(http.StatusCreated, res)
 }
 
-func (transactionController *transactionController) PutTransaction(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (transactionController *transactionController) CreateTransfer(c *gin.Context) {
+	txHandle := c.MustGet("db_trx").(*gorm.DB)
+
+	var req TransferRequest
+	if err := c.BindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	wallets, err := transactionService.WithTrx(txHandle).HandleMoney(c, &req)
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid transaction ID")
+		c.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	c.JSON(http.StatusOK, wallets)
+}
+
+func (transactionController *transactionController) PutTransaction(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, "Invalid transaction ID")
 		return
 	}
 	var b Transaction
-	decoder := json.NewDecoder(r.Body)
+	decoder := json.NewDecoder(c.Request.Body)
 	if err := decoder.Decode(&b); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		c.JSON(http.StatusBadRequest, "Invalid request payload")
 		return
 	}
-	defer r.Body.Close()
+	defer c.Request.Body.Close()
 	res, err := transactionService.UpdateTransactionService(id, &b)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "Transaction not found")
+			c.JSON(http.StatusNotFound, "Transaction not found")
 		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, res)
+	c.JSON(http.StatusOK, res)
 }
 
-func (transactionController *transactionController) UpdateActiveTransactions(w http.ResponseWriter, r *http.Request) {
+func (transactionController *transactionController) UpdateActiveTransactions(c *gin.Context) {
 	err := transactionService.UpdateActiveTransactionsService()
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "No Transactions updated!")
+			c.JSON(http.StatusNotFound, "No Transactions updated!")
 		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "Transactions marked as inactive."})
+	c.JSON(http.StatusOK, map[string]string{"message": "Transactions marked as inactive."})
 }
 
 //func (transactionController *TransactionController) DeleteTransaction(w http.ResponseWriter, r *http.Request) {

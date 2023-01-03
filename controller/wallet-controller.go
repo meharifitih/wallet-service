@@ -9,14 +9,15 @@ import (
 
 	. "github.com/WalletService/model"
 	"github.com/WalletService/service"
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 )
 
 type IWalletController interface {
-	GetWallet(w http.ResponseWriter, r *http.Request, getWithUserId bool)
-	PostWallet(w http.ResponseWriter, r *http.Request)
-	BlockWallet(w http.ResponseWriter, r *http.Request)
-	UnBlockWallet(w http.ResponseWriter, r *http.Request)
+	GetWallet(c *gin.Context)
+	GetWalletByUserId(c *gin.Context)
+	CreateWallet(c *gin.Context)
+	BlockWallet(c *gin.Context)
+	UnBlockWallet(c *gin.Context)
 }
 
 type walletController struct{}
@@ -30,81 +31,87 @@ func NewWalletController(service service.IWalletService) IWalletController {
 	return &walletController{}
 }
 
-func (walletController *walletController) GetWallet(w http.ResponseWriter, r *http.Request, getWithUserId bool) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (walletController *walletController) GetWallet(c *gin.Context) {
+	// vars := mux.Vars(r)
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid ID")
+		c.JSON(http.StatusBadRequest, "Invalid ID")
 		return
 	}
-	wallet, err := walletService.GetWalletService(id, getWithUserId)
+	wallet, err := walletService.GetWalletService(id)
 	if err != nil {
 		switch err {
 		case sql.ErrNoRows:
-			respondWithError(w, http.StatusNotFound, "Wallet not found")
+			c.JSON(http.StatusNotFound, "Wallet not found")
 		default:
-			respondWithError(w, http.StatusInternalServerError, err.Error())
+			c.JSON(http.StatusInternalServerError, err.Error())
 		}
 		return
 	}
-	respondWithJSON(w, http.StatusOK, wallet)
+	c.JSON(http.StatusOK, wallet)
 }
 
-func (walletController *walletController) PostWallet(w http.ResponseWriter, r *http.Request) {
-	var wallet Wallet
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&wallet); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+func (walletController *walletController) GetWalletByUserId(c *gin.Context) {
+	id := c.Param("id")
+	wallet, err := walletService.GetWalletByUserIdService(id)
+	if err != nil {
+		switch err {
+		case sql.ErrNoRows:
+			c.JSON(http.StatusNotFound, "Wallet not found")
+		default:
+			c.JSON(http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
-	vars := mux.Vars(r)
-	// id, err := strconv.Atoi(vars["id"])
-	// if err != nil {
-	// 	respondWithError(w, http.StatusBadRequest, "Invalid user ID")
-	// 	return
-	// }
-	id := vars["id"]
-	defer r.Body.Close()
+	c.JSON(http.StatusOK, wallet)
+}
+
+func (walletController *walletController) CreateWallet(c *gin.Context) {
+	var wallet Wallet
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(&wallet); err != nil {
+		c.JSON(http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	id := c.Param("id")
+	defer c.Request.Body.Close()
 	res, err := walletService.PostWalletService(&wallet, id)
-	// res, err := walletService.PostWalletService(&wallet, id)
 	if err != nil {
 		log.Printf("error 1 post Wallet : %s", err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusCreated, res)
+	c.JSON(http.StatusCreated, res)
 }
 
-func (walletController *walletController) BlockWallet(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (walletController *walletController) BlockWallet(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid wallet ID")
+		c.JSON(http.StatusBadRequest, "Invalid wallet ID")
 		return
 	}
 	err = walletService.BlockWalletService(id)
 	if err != nil {
 		log.Printf("Not able to block Wallet : %s", err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusLocked, map[string]string{"message": "Wallet is blocked successfully!"})
+	c.JSON(http.StatusLocked, map[string]string{"message": "Wallet is blocked successfully!"})
 }
 
-func (walletController *walletController) UnBlockWallet(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	id, err := strconv.Atoi(vars["id"])
+func (walletController *walletController) UnBlockWallet(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid wallet ID")
+		c.JSON(http.StatusBadRequest, "Invalid wallet ID")
 		return
 	}
 	err = walletService.UnBlockWalletService(id)
 	if err != nil {
 		log.Printf("Not able to unblock Wallet : %s", err)
-		respondWithError(w, http.StatusInternalServerError, err.Error())
+		c.JSON(http.StatusInternalServerError, err.Error())
 		return
 	}
-	respondWithJSON(w, http.StatusLocked, map[string]string{"message": "Wallet is unblocked successfully!"})
+	c.JSON(http.StatusLocked, map[string]string{"message": "Wallet is unblocked successfully!"})
 }
 
 //func (walletController *walletController) PutWallet(w http.ResponseWriter, r *http.Request) {

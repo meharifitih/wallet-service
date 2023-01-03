@@ -12,6 +12,7 @@ type IUserService interface {
 	PostUserService(user *User) (*User, error)
 	// UpdateUserService(id int, user *User) (*User, error)
 	DeleteUserService(id int) error
+	GetUserByPhone(phone string) (*User, error)
 }
 
 type userService struct{}
@@ -27,6 +28,10 @@ func NewUserService(repository repository.IUserRepository) IUserService {
 
 func (userService *userService) GetUserService1(id string) (*User, error) {
 	return userRepository.GetUserById1(id)
+}
+
+func (userService *userService) GetUserByPhone(phone string) (*User, error) {
+	return userRepository.GetUserByPhone(phone)
 }
 
 func (userService *userService) GetUserService(id int) (*User, error) {

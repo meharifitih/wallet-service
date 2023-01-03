@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/WalletService/cache"
@@ -11,18 +10,19 @@ import (
 	"github.com/WalletService/controller"
 	"github.com/WalletService/db"
 	_ "github.com/WalletService/docs" // This line is necessary for go-swagger to find docs!
-	router "github.com/WalletService/http"
+	"github.com/WalletService/middlewares"
 	"github.com/WalletService/repository"
 	"github.com/WalletService/scheduler"
 	"github.com/WalletService/service"
+	"github.com/gin-gonic/gin"
 	"github.com/jinzhu/gorm"
 )
 
 var (
-	c          config.Config
-	httpRouter router.IRouter
-	gormDb     db.IDatabaseEngine
-	gDb        *gorm.DB
+	c config.Config
+	// httpRouter router.IRouter
+	gormDb db.IDatabaseEngine
+	gDb    *gorm.DB
 )
 
 // Cron
@@ -56,17 +56,53 @@ var (
 
 func main() {
 	initConfig()
-	httpRouter = router.NewMuxRouter()
-	httpRouter.ADDVERSION("/api/v1")
+	// httpRouter = router.NewMuxRouter()
+	// httpRouter.ADDVERSION("/api/v1")
+
 	gormDb = db.NewGormDatabase()
 	gDb = gormDb.GetDatabase(c.Database)
 	gormDb.RunMigration()
 	initCachingLayer()
-	initUserServiceContainer()
-	initWalletServiceContainer()
-	initTransactionServiceContainer()
+	// initUserServiceContainer()
+	// initWalletServiceContainer()
+	// initTransactionServiceContainer()
 	initCron()
-	httpRouter.SERVE(c.App.Port)
+
+	userRepository = repository.NewUserRepository(gDb)
+	userService = service.NewUserService(userRepository)
+	// userController = controller.NewUserController(userService)
+
+	walletRepository = repository.NewWalletRepository(gDb)
+	walletService = service.NewWalletService(walletRepository, userService, walletCache)
+	walletController = controller.NewWalletController(walletService)
+
+	transactionRepository = repository.NewTransactionRepository(gDb)
+	transactionService = service.NewTransactionService(transactionRepository, walletService, userService, gDb)
+	transactionController = controller.NewTransactionController(transactionService, transactionIdempotentCache)
+
+	httpRouter := gin.Default()
+	// httpRouter.Use(gin.Recovery())
+
+	apiRoute := httpRouter.Group("/api/v1")
+	{
+		apiRoute.POST("/user/:id/wallet", walletController.CreateWallet)
+		apiRoute.GET("/user/:id/wallet", walletController.GetWalletByUserId)
+		apiRoute.GET("/wallet/:id", walletController.GetWallet)
+		apiRoute.POST("/wallet/:id/block", walletController.BlockWallet)
+		apiRoute.POST("/wallet/:id/unblock", walletController.UnBlockWallet)
+
+		apiRoute.GET("/transaction", transactionController.GetTransactions)
+		apiRoute.GET("/transaction/active", transactionController.GetActiveTransactions)
+		apiRoute.GET("/transaction/:id", transactionController.GetTransaction)
+
+		apiRoute.POST("/transfer", middlewares.DBTransactionMiddleware(gDb), transactionController.CreateTransfer)
+
+		apiRoute.GET("/wallet/:id/transaction", transactionController.GetTransactionsByWalletId)
+		apiRoute.POST("/wallet/:id/transaction", transactionController.PostTransaction)
+		apiRoute.PUT("/transaction/active", transactionController.UpdateActiveTransactions)
+	}
+
+	httpRouter.Run(":" + c.App.Port)
 }
 
 func initConfig() {
@@ -106,46 +142,30 @@ func initCachingLayer() {
 	cronCache = cache.NewCronCache(cacheEngine3, c.Cache.CronLock)
 }
 
-func initUserServiceContainer() {
-	userRepository = repository.NewUserRepository(gDb)
-	userService = service.NewUserService(userRepository)
-	userController = controller.NewUserController(userService)
+// func initUserServiceContainer() {
+// 	userRepository = repository.NewUserRepository(gDb)
+// 	userService = service.NewUserService(userRepository)
+// 	userController = controller.NewUserController(userService)
 
-	// httpRouter.GET("/user/{id}", userController.GetUser)
-	// httpRouter.GET("/user", userController.GetUsers)
-	// httpRouter.POST("/user", userController.PostUser)
-	// httpRouter.PUT("/user/{id}", userController.PutUser)
-	// httpRouter.DELETE("/user/{id}", userController.DeleteUser)
-}
+// httpRouter.GET("/user/{id}", userController.GetUser)
+// httpRouter.GET("/user", userController.GetUsers)
+// httpRouter.POST("/user", userController.PostUser)
+// httpRouter.PUT("/user/{id}", userController.PutUser)
+// httpRouter.DELETE("/user/{id}", userController.DeleteUser)
+// }
 
-func initWalletServiceContainer() {
-	walletRepository = repository.NewWalletRepository(gDb)
-	walletService = service.NewWalletService(walletRepository, userService, walletCache)
-	walletController = controller.NewWalletController(walletService)
+// func initTransactionServiceContainer() {
+// 	transactionRepository = repository.NewTransactionRepository(gDb)
+// 	transactionService = service.NewTransactionService(transactionRepository, walletService)
+// 	transactionController = controller.NewTransactionController(transactionService, walletService, transactionIdempotentCache)
 
-	httpRouter.GET("/user/{id}/wallet", func(w http.ResponseWriter, r *http.Request) {
-		walletController.GetWallet(w, r, true)
-	})
-	httpRouter.GET("/wallet/{id}", func(w http.ResponseWriter, r *http.Request) {
-		walletController.GetWallet(w, r, false)
-	})
-	httpRouter.POST("/user/{id}/wallet", walletController.PostWallet)
-	httpRouter.POST("/wallet/{id}/block", walletController.BlockWallet)
-	httpRouter.POST("/wallet/{id}/unblock", walletController.UnBlockWallet)
-}
-
-func initTransactionServiceContainer() {
-	transactionRepository = repository.NewTransactionRepository(gDb)
-	transactionService = service.NewTransactionService(transactionRepository, walletService)
-	transactionController = controller.NewTransactionController(transactionService, transactionIdempotentCache)
-
-	httpRouter.GET("/transaction", transactionController.GetTransactions)
-	httpRouter.GET("/transaction/active", transactionController.GetActiveTransactions)
-	httpRouter.GET("/transaction/{id}", transactionController.GetTransaction)
-	httpRouter.GET("/wallet/{id}/transaction", transactionController.GetTransactionsByWalletId)
-	httpRouter.POST("/wallet/{id}/transaction", transactionController.PostTransaction)
-	httpRouter.PUT("/transaction/active", transactionController.UpdateActiveTransactions)
-}
+// httpRouter.GET("/transaction", transactionController.GetTransactions)
+// httpRouter.GET("/transaction/active", transactionController.GetActiveTransactions)
+// httpRouter.GET("/transaction/{id}", transactionController.GetTransaction)
+// httpRouter.GET("/wallet/{id}/transaction", transactionController.GetTransactionsByWalletId)
+// httpRouter.POST("/wallet/{id}/transaction", transactionController.PostTransaction)
+// httpRouter.PUT("/transaction/active", transactionController.UpdateActiveTransactions)
+// }
 
 func initCron() {
 	reportCron = scheduler.NewReportCron(transactionService, cronCache)

@@ -53,7 +53,7 @@ func (r *redisCache) CheckConnection() error {
 		return err
 	}
 	fmt.Println(pong, err)
-	log.Printf("Redis DB %d connection running on port 6379\n", r.db)
+	log.Printf("Redis DB %d connection running on port 16379\n", r.db)
 	// Output: PONG <nil>
 	return nil
 }

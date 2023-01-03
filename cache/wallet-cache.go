@@ -1,14 +1,15 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
+	"log"
+	"strconv"
+	"time"
+
 	"github.com/WalletService/config"
 	"github.com/WalletService/model"
 	"github.com/go-redis/redis/v8"
-	"log"
-	"context"
-	"strconv"
-	"time"
 )
 
 type walletCache struct {
@@ -16,12 +17,13 @@ type walletCache struct {
 }
 
 var (
-	cE ICacheEngine
+	cE  ICacheEngine
 	ctx context.Context
 )
 
 type IWalletCache interface {
-	Set(key int, value *model.Wallet) error
+	// Set(key int, value *model.Wallet) error
+	Set(key string, value *model.Wallet) error
 	Get(key int) *model.Wallet
 }
 
@@ -31,13 +33,15 @@ func NewWalletCache(cacheEngine ICacheEngine, config config.PropertyH) IWalletCa
 	return &walletCache{time.Duration(config.Expiry) * time.Hour}
 }
 
-func (wC *walletCache) Set(key int, value *model.Wallet) error {
+func (wC *walletCache) Set(key string, value *model.Wallet) error {
+	// func (wC *walletCache) Set(key int, value *model.Wallet) error {
 	wallet, err := json.Marshal(value)
 	if err != nil {
 		log.Println("Error occurred while marshalling cache wallet value to model")
 		return err
 	}
-	err = cE.GetCacheClient().Set(ctx, strconv.Itoa(key), wallet, wC.expires).Err()
+	err = cE.GetCacheClient().Set(ctx, key, wallet, wC.expires).Err()
+	// err = cE.GetCacheClient().Set(ctx, strconv.Itoa(key), wallet, wC.expires).Err()
 	if err != nil {
 		log.Println("Error occurred while pushing Wallet to redis, error : ", err)
 		return err
@@ -51,7 +55,7 @@ func (wC *walletCache) Get(key int) *model.Wallet {
 	if err == redis.Nil {
 		log.Printf("Wallet ID not found : %d\n", key)
 		return nil
-	}else if err != nil {
+	} else if err != nil {
 		log.Println("Error occurred while fetching Wallet from redis, error : ", err)
 		return nil
 	}

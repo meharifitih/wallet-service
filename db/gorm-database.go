@@ -29,7 +29,7 @@ func InitDatabase(g *gormDatabase, config *config.Database) {
 	} else {
 		log.Println("Database connection established!")
 	}
-	log.Println("MySql connection running on port 3306")
+	log.Println("MySql connection running on port 13306")
 	g.client = db
 }
 

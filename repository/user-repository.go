@@ -12,6 +12,7 @@ type IUserRepository interface {
 	CreateUser(user *User) (*User, error)
 	UpdateUser(user *User) (*User, error)
 	DeleteUser(user *User) error
+	GetUserByPhone(phone string) (*User, error)
 }
 
 type userRepository struct {
@@ -53,4 +54,10 @@ func (userRepository *userRepository) UpdateUser(user *User) (*User, error) {
 func (userRepository *userRepository) DeleteUser(user *User) error {
 	result := userRepository.DB.Delete(user)
 	return result.Error
+}
+
+func (userRepository *userRepository) GetUserByPhone(phone string) (*User, error) {
+	var user User
+	result := userRepository.DB.Table("users").Where("phone_number = ?", phone).First(&user)
+	return &user, result.Error
 }
